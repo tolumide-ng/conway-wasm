@@ -3,6 +3,9 @@ use std::fmt::Display;
 use wasm_bindgen::prelude::*;
 
 mod utils;
+mod timer;
+
+use timer::Timer;
 
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -17,6 +20,15 @@ macro_rules! log {
 pub enum Cell {
     Dead = 0,
     Alive = 1,
+}
+
+impl Cell {
+    pub fn toggle(&mut self) {
+        *self = match *self {
+            Cell::Alive => Cell::Dead,
+            Cell::Dead => Cell::Alive,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -83,8 +95,8 @@ impl Universe {
     pub fn new() -> Self {
         utils::set_panic_hook();
 
-        let width = 64;
-        let height = 64;
+        let width = 128;
+        let height = 128;
         let size = width * height;
 
         let cells = (0..size)
@@ -100,6 +112,7 @@ impl Universe {
     }
 
     pub fn tick(&mut self) {
+        let _timer = Timer::new("Universe::tick");
         let mut next = self.cells.clone();
 
         for row in 0..self.height {
@@ -170,14 +183,5 @@ impl Universe {
     pub fn toggle_cell(&mut self, row: u32, column: u32) {
         let idx = self.get_index(row, column);
         self.cells[idx].toggle();
-    }
-}
-
-impl Cell {
-    pub fn toggle(&mut self) {
-        *self = match *self {
-            Cell::Alive => Cell::Dead,
-            Cell::Dead => Cell::Alive,
-        }
     }
 }
