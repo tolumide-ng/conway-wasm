@@ -1,8 +1,5 @@
 extern crate wasm_bindgen_test;
-use wasm_bindgen_test::*;
-
-
-use conway::Universe;
+// use conway::Universe;
 
 
 #[cfg(test)]

@@ -7,6 +7,9 @@ edition = "2018"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[profile.dev.package."*"]
+opt-level = "z"
+
 [features]
 default = ["console_error_panic_hook"]
 
