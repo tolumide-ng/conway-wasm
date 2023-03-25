@@ -2,6 +2,14 @@ use std::fmt::Display;
 
 use wasm_bindgen::prelude::*;
 
+mod utils;
+
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    };
+}
+
 
 #[wasm_bindgen]
 #[repr(u8)]
@@ -40,11 +48,57 @@ impl Universe {
         }
         count
     }
+
+    /// Get the dead abd alive values of the entier universe.
+    pub fn get_cells(&self) -> &[Cell] {
+        &self.cells
+    }
+
+    /// Set cells to be alive in a universe by passing the row and column
+    /// of each cell as an array
+    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
+        for (row, col) in cells.iter().cloned() {
+            let idx = self.get_index(row, col);
+            self.cells[idx] = Cell::Alive;
+        }
+    }
+}
+
+impl Display for Universe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for line in self.cells.as_slice().chunks(self.width as usize) {
+            for &cell in line {
+                let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
+                write!(f, "{}", symbol)?;
+            }
+            write!(f, "\n")?;    
+        }
+        Ok(())
+    }
 }
 
 /// Public methods, exported to Javascript
 #[wasm_bindgen]
 impl Universe {
+    pub fn new() -> Self {
+        utils::set_panic_hook();
+
+        let width = 64;
+        let height = 64;
+        let size = width * height;
+
+        let cells = (0..size)
+            .map(|i| {
+                if i % 2 == 0 || i % 7 == 0 {
+                    Cell::Alive
+                } else {
+                    Cell::Dead
+                }
+            }).collect();
+
+            Universe { width, height, cells }
+    }
+
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
 
@@ -53,6 +107,11 @@ impl Universe {
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 let live_neighbors = self.live_neighbour_count(row, col);
+
+                // log!(
+                //     "cell[{}, {}] is initially {:?} and has {} live neighbors",
+                //     row, col, cell, live_neighbors
+                // );
 
                 let next_cell = match (cell, live_neighbors) {
                     // Rule 1: Any live cell with fewer than two live neighbours dies,
@@ -71,44 +130,11 @@ impl Universe {
                     (otherwise, _) => otherwise,
                 };
 
+                // log!(" it becomes {:?}", next_cell);
                 next[idx] = next_cell;
             }
         }
         self.cells = next;
-    }
-}
-
-impl Display for Universe {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for line in self.cells.as_slice().chunks(self.width as usize) {
-            for &cell in line {
-                let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
-                write!(f, "{}", symbol)?;
-            }
-            write!(f, "\n")?;    
-        }
-        Ok(())
-    }
-}
-
-
-/// Public methods, exported to Javascript
-#[wasm_bindgen]
-impl Universe {
-    pub fn new() -> Self {
-        let width = 64;
-        let height = 64;
-
-        let cells = (0..width * height)
-            .map(|i| {
-                if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
-                } else {
-                    Cell::Dead
-                }
-            }).collect();
-
-            Universe { width, height, cells }
     }
 
     pub fn render(&self) -> String {
@@ -125,5 +151,33 @@ impl Universe {
 
     pub fn cells(&self) -> *const Cell {
         self.cells.as_ptr()
+    }
+
+    /// Set the width of the universe.
+    /// Resets all cells to the dead state.
+    pub fn set_width(&mut self, width: u32) {
+        self.width = width;
+        self.cells = (0..width * self.height).map(|_i| Cell::Dead).collect();
+    }
+
+    /// Sets the height of the universe.
+    /// Resets all cells to the dead state.
+    pub fn set_height(&mut self, height: u32) {
+        self.height = height;
+        self.cells = (0..self.width * height).map(|_i| Cell::Dead).collect();
+    }
+
+    pub fn toggle_cell(&mut self, row: u32, column: u32) {
+        let idx = self.get_index(row, column);
+        self.cells[idx].toggle();
+    }
+}
+
+impl Cell {
+    pub fn toggle(&mut self) {
+        *self = match *self {
+            Cell::Alive => Cell::Dead,
+            Cell::Dead => Cell::Alive,
+        }
     }
 }
